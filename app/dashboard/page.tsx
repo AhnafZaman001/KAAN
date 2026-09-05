@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server';
-import { SignOutButton } from './sign-out-button';
 import styles from './dashboard.module.css';
 
 export default async function DashboardPage() {
@@ -19,11 +18,6 @@ export default async function DashboardPage() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <span className={styles.wordmark}>KAAN</span>
-        <SignOutButton />
-      </header>
-
       <main className={styles.main}>
         <h1 className={styles.title}>Students</h1>
         <p className={styles.subtitle}>

@@ -265,8 +265,9 @@ def process_sheet(image_path, spec_path):
     for cell in spec["cells"]:
         cropped = crop_cell(warped, cell["box"])
         status, confidence = classify_mark(cropped)
+        confidence = float(confidence)
 
-        needs_review = status == "unclear" or confidence < 0.6
+        needs_review = bool(status == "unclear" or confidence < 0.6)
 
         results.append({
             "roll_number": cell["roll_number"],
