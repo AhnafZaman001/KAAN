@@ -1,0 +1,178 @@
+.page {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 100vh;
+}
+
+/* ---- Left panel: the one bold element on this page.
+   A grid of faint rows evokes the ledger sheet KAAN digitizes,
+   with a single P/A pair marked to hint at what the product does
+   without spelling it out in a headline. ---- */
+.showcase {
+  background: var(--color-ink);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-12) var(--space-12);
+  overflow: hidden;
+}
+
+.ledgerGrid {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.06) 0,
+    rgba(255, 255, 255, 0.06) 1px,
+    transparent 1px,
+    transparent 56px
+  );
+}
+
+.wordmark {
+  position: relative;
+  color: #FFFFFF;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.showcaseFooter {
+  position: relative;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--text-sm);
+  max-width: 32ch;
+  line-height: var(--leading-normal);
+}
+
+.markRow {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  color: #FFFFFF;
+}
+
+.markPresent {
+  color: #7FB99A;
+}
+
+.markAbsent {
+  color: #D98A93;
+}
+
+.markName {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 400;
+}
+
+/* ---- Right panel: the form. Quiet, functional, fast to scan. ---- */
+.formSide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  background: var(--color-bg);
+}
+
+.formCard {
+  width: 100%;
+  max-width: 22rem;
+}
+
+.formTitle {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  margin: 0 0 var(--space-2);
+  letter-spacing: -0.01em;
+}
+
+.formSubtitle {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-8);
+}
+
+.field {
+  margin-bottom: var(--space-4);
+}
+
+.label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  margin-bottom: var(--space-2);
+}
+
+.input {
+  width: 100%;
+  padding: var(--space-3);
+  font-size: var(--text-base);
+  font-family: var(--font-body);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+
+.input:focus {
+  border-color: var(--color-ink);
+}
+
+.submit {
+  width: 100%;
+  padding: var(--space-3);
+  margin-top: var(--space-2);
+  font-size: var(--text-base);
+  font-weight: 600;
+  font-family: var(--font-body);
+  color: #FFFFFF;
+  background: var(--color-ink);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--color-ink-hover);
+}
+
+.submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  margin-bottom: var(--space-4);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+@media (max-width: 860px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+
+  .showcase {
+    padding: var(--space-8) var(--space-6);
+    min-height: 220px;
+  }
+
+  .showcaseFooter {
+    display: none;
+  }
+}

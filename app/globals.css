@@ -1,0 +1,95 @@
+/* =========================================================
+   KAAN — Design Tokens
+   Single source of truth for color, type, and spacing.
+   Every component should read from these variables rather
+   than hardcoding values, so the whole app stays consistent
+   as more pages get built.
+   ========================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap');
+
+:root {
+  /* ---- Color: cool paper-grey base, ink-blue as primary,
+     muted red-ink as the error/absent accent (a deliberate
+     nod to how absences get marked in red pen) ---- */
+  --color-bg: #F5F6F4;
+  --color-surface: #FFFFFF;
+  --color-ink: #16324F;        /* primary — deep ink blue */
+  --color-ink-hover: #0F2438;
+  --color-text: #1A1D1F;
+  --color-text-muted: #5C6368;
+  --color-border: #DCDFDB;
+  --color-error: #8B2635;      /* muted red-ink, not a bright alert red */
+  --color-error-bg: #F7EBEC;
+  --color-success: #2F5D45;
+  --color-success-bg: #EBF2EE;
+
+  /* ---- Type ---- */
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --text-xs: 0.8125rem;   /* 13px */
+  --text-sm: 0.9375rem;   /* 15px */
+  --text-base: 1rem;      /* 16px */
+  --text-lg: 1.25rem;     /* 20px */
+  --text-xl: 1.75rem;     /* 28px */
+  --text-2xl: 2.25rem;    /* 36px */
+
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+
+  /* ---- Spacing (4px base scale) ---- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* ---- Shape ---- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --border-width: 1px;
+
+  /* ---- Motion ---- */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 120ms;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+/* Visible keyboard focus everywhere — required, not optional */
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
