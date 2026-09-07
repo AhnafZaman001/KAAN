@@ -6,6 +6,15 @@ const ERROR_MESSAGES: Record<string, { message: string; status: number }> = {
   SESSION_ALREADY_CLOSED: { message: 'Session is already closed.', status: 409 },
 };
 
+function getClientInfo(request: NextRequest) {
+  const ip =
+    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
+    request.headers.get('x-real-ip') ??
+    null;
+  const userAgent = request.headers.get('user-agent');
+  return { ip, userAgent };
+}
+
 export async function POST(request: NextRequest) {
   const supabase = createClient();
 
@@ -22,14 +31,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'session_id is required.' }, { status: 400 });
   }
 
+  const { ip, userAgent } = getClientInfo(request);
+
   // Single atomic function: the "who hasn't scanned" check and the
   // absent-marking insert happen in one statement inside one
   // transaction, so a scan can't land unseen in the gap between
-  // reading and writing. See migrations/006_kiosk_functions.sql.
+  // reading and writing. Also records which device closed it.
   const { data, error } = await supabase
     .rpc('close_attendance_session', {
       p_session_id: session_id,
       p_closed_by: user.id,
+      p_ip_address: ip,
+      p_user_agent: userAgent,
     })
     .single();
 

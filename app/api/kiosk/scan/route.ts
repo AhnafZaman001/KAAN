@@ -7,7 +7,17 @@ const ERROR_MESSAGES: Record<string, { message: string; status: number }> = {
   STUDENT_NOT_FOUND: { message: 'QR code not recognized.', status: 404 },
   STUDENT_INACTIVE: { message: 'This student is not active.', status: 400 },
   WRONG_SECTION: { message: 'This student is not in this section — wrong kiosk?', status: 400 },
+  RATE_LIMITED: { message: 'Too many scan attempts — slow down a moment.', status: 429 },
 };
+
+function getClientInfo(request: NextRequest) {
+  const ip =
+    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
+    request.headers.get('x-real-ip') ??
+    null;
+  const userAgent = request.headers.get('user-agent');
+  return { ip, userAgent };
+}
 
 export async function POST(request: NextRequest) {
   const supabase = createClient();
@@ -25,15 +35,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'session_id and qr_token are required.' }, { status: 400 });
   }
 
-  // One atomic round-trip: validates session + student + writes the
-  // scan, all inside a single Postgres function call. See
-  // supabase/migrations/006_kiosk_functions.sql for why this replaced
-  // the earlier multi-query version.
+  const { ip, userAgent } = getClientInfo(request);
+
+  // One atomic round-trip: validates session + student, writes the
+  // scan, checks the rate limit, and logs the audit entry — all
+  // inside a single Postgres function call. See
+  // supabase/migrations/006_kiosk_functions.sql and
+  // supabase/migrations/007_scan_rate_limit_audit.sql.
   const { data, error } = await supabase
     .rpc('record_scan', {
       p_session_id: session_id,
       p_qr_token: qr_token,
       p_marked_by: user.id,
+      p_ip_address: ip,
+      p_user_agent: userAgent,
     })
     .single();
 

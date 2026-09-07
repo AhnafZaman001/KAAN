@@ -33,6 +33,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const ip =
+    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
+    request.headers.get('x-real-ip') ??
+    null;
+  const userAgent = request.headers.get('user-agent');
+
   // Total active students in the section — used by the kiosk to show
   // a meaningful "X of Y scanned" confirmation before closing.
   const { count: totalActiveStudents } = await supabase
@@ -70,6 +76,8 @@ export async function POST(request: NextRequest) {
       session_date,
       status: 'open',
       opened_by: user.id,
+      opened_from_ip: ip,
+      opened_user_agent: userAgent,
     })
     .select('id, status')
     .single();
