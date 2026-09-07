@@ -132,6 +132,11 @@
   color: var(--color-error);
 }
 
+.feedbackRepeat {
+  background: var(--color-medical-bg);
+  color: var(--color-medical);
+}
+
 .feedbackIdle {
   background: var(--color-bg);
   color: var(--color-text-muted);

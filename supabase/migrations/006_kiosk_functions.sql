@@ -16,12 +16,17 @@
 -- policies still apply; this isn't a way around RLS.
 -- =========================================================
 
+-- Postgres won't let CREATE OR REPLACE change a function's return
+-- type — safe to run this whether or not an earlier version of
+-- record_scan already exists.
+drop function if exists record_scan(uuid, uuid, uuid);
+
 create or replace function record_scan(
   p_session_id uuid,
   p_qr_token uuid,
   p_marked_by uuid
 )
-returns table(full_name text, roll_number text)
+returns table(full_name text, roll_number text, is_first_scan boolean)
 language plpgsql
 as $$
 declare
@@ -32,6 +37,7 @@ declare
   v_student_roll text;
   v_student_active boolean;
   v_student_section uuid;
+  v_is_first_scan boolean;
 begin
   select status, section_id into v_session_status, v_section_id
   from attendance_sessions where id = p_session_id;
@@ -60,12 +66,17 @@ begin
     raise exception 'WRONG_SECTION';
   end if;
 
+  -- (xmax = 0) is a reliable Postgres trick to tell whether this row
+  -- was just INSERTed (true) or already existed and got UPDATEd via
+  -- ON CONFLICT (false) — i.e. whether this is a first scan or a
+  -- repeat scan of an already-present student.
   insert into attendance_records (session_id, student_id, status, source, scanned_at, marked_by)
   values (p_session_id, v_student_id, 'P', 'scan', now(), p_marked_by)
   on conflict (session_id, student_id)
-  do update set scanned_at = excluded.scanned_at, status = 'P', source = 'scan', marked_by = excluded.marked_by;
+  do update set scanned_at = excluded.scanned_at, status = 'P', source = 'scan', marked_by = excluded.marked_by
+  returning (xmax = 0) into v_is_first_scan;
 
-  return query select v_student_name, v_student_roll;
+  return query select v_student_name, v_student_roll, v_is_first_scan;
 end;
 $$;
 

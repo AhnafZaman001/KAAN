@@ -48,5 +48,6 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     full_name: (data as any).full_name,
     roll_number: (data as any).roll_number,
+    is_first_scan: (data as any).is_first_scan,
   });
 }

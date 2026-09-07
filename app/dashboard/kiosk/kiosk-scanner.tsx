@@ -5,7 +5,7 @@ import jsQR from 'jsqr';
 import styles from './kiosk.module.css';
 
 type Phase = 'setup' | 'scanning' | 'closed';
-type Feedback = { type: 'success' | 'error' | 'idle'; message: string };
+type Feedback = { type: 'success' | 'repeat' | 'error' | 'idle'; message: string };
 
 const SCAN_COOLDOWN_MS = 2500; // ignore repeat scans of the same QR for this long
 
@@ -117,10 +117,17 @@ export function KioskScanner({ sections }: { sections: { id: string; name: strin
         return;
       }
 
-      setFeedback({
-        type: 'success',
-        message: `✓ ${data.full_name} (Roll ${data.roll_number})`,
-      });
+      if (data.is_first_scan) {
+        setFeedback({
+          type: 'success',
+          message: `✓ ${data.full_name} (Roll ${data.roll_number})`,
+        });
+      } else {
+        setFeedback({
+          type: 'repeat',
+          message: `Already scanned — ${data.full_name} (Roll ${data.roll_number})`,
+        });
+      }
     } catch {
       setFeedback({ type: 'error', message: 'Network error — check connection and retry.' });
     }
@@ -179,9 +186,11 @@ export function KioskScanner({ sections }: { sections: { id: string; name: strin
           className={`${styles.feedback} ${
             feedback.type === 'success'
               ? styles.feedbackSuccess
-              : feedback.type === 'error'
-                ? styles.feedbackError
-                : styles.feedbackIdle
+              : feedback.type === 'repeat'
+                ? styles.feedbackRepeat
+                : feedback.type === 'error'
+                  ? styles.feedbackError
+                  : styles.feedbackIdle
           }`}
         >
           {feedback.message}
