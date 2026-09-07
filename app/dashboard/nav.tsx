@@ -6,9 +6,8 @@ import styles from './layout.module.css';
 
 const LINKS = [
   { href: '/dashboard', label: 'Students' },
-  { href: '/dashboard/sheets/new', label: 'Print sheet' },
-  { href: '/dashboard/sheets/upload', label: 'Upload sheet' },
-  { href: '/dashboard/review', label: 'Review queue' },
+  { href: '/dashboard/id-cards', label: 'ID cards' },
+  { href: '/dashboard/kiosk', label: 'Kiosk' },
 ];
 
 export function DashboardNav() {

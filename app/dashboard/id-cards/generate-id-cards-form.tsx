@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import styles from '../sheets.module.css';
+import styles from './id-cards.module.css';
 
-export function GenerateSheetForm({ sections }: { sections: { id: string; name: string }[] }) {
+export function GenerateIdCardsForm({ sections }: { sections: { id: string; name: string }[] }) {
   const [sectionId, setSectionId] = useState(sections[0]?.id ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -14,7 +14,7 @@ export function GenerateSheetForm({ sections }: { sections: { id: string; name: 
     setLoading(true);
 
     try {
-      const res = await fetch('/api/sheets/generate', {
+      const res = await fetch('/api/id-cards/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ section_id: sectionId }),
@@ -22,14 +22,14 @@ export function GenerateSheetForm({ sections }: { sections: { id: string; name: 
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? 'Could not generate the sheet.');
+        throw new Error(data.error ?? 'Could not generate ID cards.');
       }
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `attendance_sheet.pdf`;
+      a.download = 'id_cards.pdf';
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: any) {
