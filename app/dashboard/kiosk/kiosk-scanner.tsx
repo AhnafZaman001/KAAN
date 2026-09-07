@@ -175,6 +175,7 @@ export function KioskScanner({ sections }: { sections: { id: string; name: strin
         <canvas ref={canvasRef} style={{ display: 'none' }} />
 
         <div
+          key={feedback.message}
           className={`${styles.feedback} ${
             feedback.type === 'success'
               ? styles.feedbackSuccess

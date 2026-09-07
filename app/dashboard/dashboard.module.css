@@ -1,43 +1,15 @@
-.page {
-  min-height: 100vh;
-  background: var(--color-bg);
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-4) var(--space-8);
-  background: var(--color-surface);
-  border-bottom: var(--border-width) solid var(--color-border);
-}
-
-.wordmark {
-  font-weight: 600;
-  font-size: var(--text-lg);
-  color: var(--color-ink);
-}
-
-.signOut {
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  font-family: var(--font-body);
-  color: var(--color-text);
-  background: transparent;
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-
-.signOut:hover {
-  border-color: var(--color-ink);
-}
-
 .main {
   padding: var(--space-8);
   max-width: 60rem;
   margin: 0 auto;
+}
+
+.headerRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
 }
 
 .title {
@@ -49,7 +21,65 @@
 .subtitle {
   color: var(--color-text-muted);
   font-size: var(--text-sm);
-  margin: 0 0 var(--space-8);
+  margin: 0;
+}
+
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.statCard {
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.statValue {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-tight);
+}
+
+.statLabel {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.controls {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.select,
+.search {
+  padding: var(--space-3);
+  font-size: var(--text-sm);
+  font-family: var(--font-body);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.select {
+  min-width: 12rem;
+}
+
+.search {
+  flex: 1;
+}
+
+.search:focus,
+.select:focus {
+  border-color: var(--color-ink);
 }
 
 .table {
@@ -80,9 +110,19 @@
   border-bottom: none;
 }
 
+.table tbody tr:hover {
+  background: var(--color-bg);
+}
+
 .rollNumber {
   font-family: var(--font-mono);
   color: var(--color-text-muted);
+}
+
+.resultCount {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--space-3);
 }
 
 .empty {

@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+const ERROR_MESSAGES: Record<string, { message: string; status: number }> = {
+  SESSION_NOT_FOUND: { message: 'Session not found.', status: 404 },
+  SESSION_CLOSED: { message: 'This session has already ended.', status: 409 },
+  STUDENT_NOT_FOUND: { message: 'QR code not recognized.', status: 404 },
+  STUDENT_INACTIVE: { message: 'This student is not active.', status: 400 },
+  WRONG_SECTION: { message: 'This student is not in this section — wrong kiosk?', status: 400 },
+};
+
 export async function POST(request: NextRequest) {
   const supabase = createClient();
 
@@ -17,63 +25,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'session_id and qr_token are required.' }, { status: 400 });
   }
 
-  const { data: session, error: sessionError } = await supabase
-    .from('attendance_sessions')
-    .select('id, section_id, status')
-    .eq('id', session_id)
+  // One atomic round-trip: validates session + student + writes the
+  // scan, all inside a single Postgres function call. See
+  // supabase/migrations/006_kiosk_functions.sql for why this replaced
+  // the earlier multi-query version.
+  const { data, error } = await supabase
+    .rpc('record_scan', {
+      p_session_id: session_id,
+      p_qr_token: qr_token,
+      p_marked_by: user.id,
+    })
     .single();
 
-  if (sessionError || !session) {
-    return NextResponse.json({ error: 'Session not found.' }, { status: 404 });
-  }
-
-  if (session.status === 'closed') {
-    return NextResponse.json({ error: 'This session has already ended.' }, { status: 409 });
-  }
-
-  const { data: student, error: studentError } = await supabase
-    .from('students')
-    .select('id, full_name, roll_number, section_id, active')
-    .eq('qr_token', qr_token)
-    .maybeSingle();
-
-  if (studentError || !student) {
-    return NextResponse.json({ error: 'QR code not recognized.' }, { status: 404 });
-  }
-
-  if (!student.active) {
-    return NextResponse.json({ error: `${student.full_name} is not an active student.` }, { status: 400 });
-  }
-
-  if (student.section_id !== session.section_id) {
-    return NextResponse.json(
-      { error: `${student.full_name} is not in this section — wrong kiosk?` },
-      { status: 400 }
-    );
-  }
-
-  // Upsert: a repeat scan of the same student just refreshes
-  // scanned_at rather than erroring or double-counting.
-  const { error: upsertError } = await supabase
-    .from('attendance_records')
-    .upsert(
-      {
-        session_id,
-        student_id: student.id,
-        status: 'P',
-        source: 'scan',
-        scanned_at: new Date().toISOString(),
-        marked_by: user.id,
-      },
-      { onConflict: 'session_id,student_id' }
-    );
-
-  if (upsertError) {
-    return NextResponse.json({ error: upsertError.message }, { status: 500 });
+  if (error) {
+    const known = ERROR_MESSAGES[error.message];
+    if (known) {
+      return NextResponse.json({ error: known.message }, { status: known.status });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json({
-    full_name: student.full_name,
-    roll_number: student.roll_number,
+    full_name: (data as any).full_name,
+    roll_number: (data as any).roll_number,
   });
 }

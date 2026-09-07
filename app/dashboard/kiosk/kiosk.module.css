@@ -113,6 +113,18 @@
 .feedbackSuccess {
   background: var(--color-success-bg);
   color: var(--color-success);
+  animation: scanFlash 400ms var(--ease-standard);
+}
+
+@keyframes scanFlash {
+  0% {
+    transform: scale(0.97);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .feedbackError {

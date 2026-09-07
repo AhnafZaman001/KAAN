@@ -1,64 +1,74 @@
 import { createClient } from '@/lib/supabase/server';
+import { getSections } from './get-sections';
+import { SectionPicker } from './section-picker';
+import { StudentsTable } from './students-table';
 import styles from './dashboard.module.css';
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: { section?: string };
+}) {
   const supabase = createClient();
+  const { sections } = await getSections();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const selectedSectionId = searchParams.section ?? sections[0]?.id ?? '';
 
-  // If this returns rows, auth + RLS + profiles are all wired
-  // correctly end to end. If it returns [], the profiles row
-  // is missing or has the wrong school_id/role.
-  const { data: students, error } = await supabase
+  // Count-only queries (head: true) — don't transfer rows just to
+  // count them. Matters once a school has 1800+ students; a plain
+  // unfiltered `select *` here would pull the whole roster into
+  // memory just to render a number.
+  const { count: totalStudents } = await supabase
     .from('students')
-    .select('roll_number, full_name')
-    .order('roll_number');
+    .select('*', { count: 'exact', head: true })
+    .eq('active', true);
+
+  const { data: students, error } = selectedSectionId
+    ? await supabase
+        .from('students')
+        .select('roll_number, full_name')
+        .eq('section_id', selectedSectionId)
+        .eq('active', true)
+        .order('roll_number')
+    : { data: [], error: null };
 
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <h1 className={styles.title}>Students</h1>
-        <p className={styles.subtitle}>
-          Signed in as {user?.email}. This list comes straight from
-          Supabase through your logged-in session — if it's populated,
-          auth and RLS are working together correctly.
-        </p>
+    <main className={styles.main}>
+      <div className={styles.headerRow}>
+        <div>
+          <h1 className={styles.title}>Students</h1>
+          <p className={styles.subtitle}>Browse your school's roster, one section at a time.</p>
+        </div>
+      </div>
 
-        {error && (
-          <div className={styles.empty}>
-            Couldn't load students: {error.message}
+      <div className={styles.statsRow}>
+        <div className={styles.statCard}>
+          <div className={styles.statValue}>{totalStudents ?? 0}</div>
+          <div className={styles.statLabel}>students (school-wide)</div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statValue}>{sections.length}</div>
+          <div className={styles.statLabel}>sections</div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statValue}>{students?.length ?? 0}</div>
+          <div className={styles.statLabel}>in selected section</div>
+        </div>
+      </div>
+
+      {sections.length === 0 ? (
+        <div className={styles.empty}>No sections found for your school yet.</div>
+      ) : (
+        <>
+          <div className={styles.controls}>
+            <SectionPicker sections={sections} selected={selectedSectionId} />
           </div>
-        )}
 
-        {!error && students && students.length === 0 && (
-          <div className={styles.empty}>
-            No students visible. Check that your profiles row has the
-            correct school_id and role — RLS is likely blocking
-            everything until that's set correctly.
-          </div>
-        )}
+          {error && <div className={styles.empty}>Couldn't load students: {error.message}</div>}
 
-        {!error && students && students.length > 0 && (
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Roll No.</th>
-                <th>Name</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((s) => (
-                <tr key={s.roll_number}>
-                  <td className={styles.rollNumber}>{s.roll_number}</td>
-                  <td>{s.full_name}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </main>
-    </div>
+          {!error && <StudentsTable students={students ?? []} />}
+        </>
+      )}
+    </main>
   );
 }

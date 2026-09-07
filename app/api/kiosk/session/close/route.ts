@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+const ERROR_MESSAGES: Record<string, { message: string; status: number }> = {
+  SESSION_NOT_FOUND: { message: 'Session not found.', status: 404 },
+  SESSION_ALREADY_CLOSED: { message: 'Session is already closed.', status: 409 },
+};
+
 export async function POST(request: NextRequest) {
   const supabase = createClient();
 
@@ -17,68 +22,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'session_id is required.' }, { status: 400 });
   }
 
-  const { data: session, error: sessionError } = await supabase
-    .from('attendance_sessions')
-    .select('id, section_id, status')
-    .eq('id', session_id)
+  // Single atomic function: the "who hasn't scanned" check and the
+  // absent-marking insert happen in one statement inside one
+  // transaction, so a scan can't land unseen in the gap between
+  // reading and writing. See migrations/006_kiosk_functions.sql.
+  const { data, error } = await supabase
+    .rpc('close_attendance_session', {
+      p_session_id: session_id,
+      p_closed_by: user.id,
+    })
     .single();
 
-  if (sessionError || !session) {
-    return NextResponse.json({ error: 'Session not found.' }, { status: 404 });
-  }
-
-  if (session.status === 'closed') {
-    return NextResponse.json({ error: 'Session is already closed.' }, { status: 409 });
-  }
-
-  // Every active student in this section...
-  const { data: students, error: studentsError } = await supabase
-    .from('students')
-    .select('id')
-    .eq('section_id', session.section_id)
-    .eq('active', true);
-
-  if (studentsError) {
-    return NextResponse.json({ error: studentsError.message }, { status: 500 });
-  }
-
-  // ...who doesn't already have a record (i.e. never scanned in)...
-  const { data: existingRecords } = await supabase
-    .from('attendance_records')
-    .select('student_id')
-    .eq('session_id', session_id);
-
-  const scannedIds = new Set((existingRecords ?? []).map((r) => r.student_id));
-  const unscanned = (students ?? []).filter((s) => !scannedIds.has(s.id));
-
-  // ...gets marked absent by default.
-  if (unscanned.length > 0) {
-    const absentRecords = unscanned.map((s) => ({
-      session_id,
-      student_id: s.id,
-      status: 'A' as const,
-      source: 'auto_absent' as const,
-      marked_by: user.id,
-    }));
-
-    const { error: insertError } = await supabase.from('attendance_records').insert(absentRecords);
-    if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+  if (error) {
+    const known = ERROR_MESSAGES[error.message];
+    if (known) {
+      return NextResponse.json({ error: known.message }, { status: known.status });
     }
-  }
-
-  const { error: closeError } = await supabase
-    .from('attendance_sessions')
-    .update({ status: 'closed', closed_by: user.id, closed_at: new Date().toISOString() })
-    .eq('id', session_id);
-
-  if (closeError) {
-    return NextResponse.json({ error: closeError.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json({
     closed: true,
-    scanned_count: scannedIds.size,
-    auto_absent_count: unscanned.length,
+    scanned_count: (data as any).scanned_count,
+    auto_absent_count: (data as any).auto_absent_count,
   });
 }
