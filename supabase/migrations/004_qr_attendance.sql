@@ -19,7 +19,11 @@ create index idx_students_qr_token on students(qr_token);
 
 -- ---------------------------------------------------------
 -- 2. Drop the old paper-sheet model entirely.
+-- Views must go first — they reference attendance_records and
+-- would otherwise block the table drop.
 -- ---------------------------------------------------------
+drop view if exists section_daily_summary;
+drop view if exists student_attendance_summary;
 drop table if exists attendance_corrections;
 drop table if exists attendance_records;
 drop table if exists sheets;
