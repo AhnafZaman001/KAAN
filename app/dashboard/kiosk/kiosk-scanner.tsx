@@ -2,12 +2,14 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import jsQR from 'jsqr';
+import { queueScan, getQueuedScans, removeQueuedScan, queuedScanCount } from '@/lib/offline-scan-queue';
 import styles from './kiosk.module.css';
 
 type Phase = 'setup' | 'scanning' | 'closed';
-type Feedback = { type: 'success' | 'repeat' | 'error' | 'idle'; message: string };
+type Feedback = { type: 'success' | 'repeat' | 'queued' | 'error' | 'idle'; message: string };
 
 const SCAN_COOLDOWN_MS = 2500; // ignore repeat scans of the same QR for this long
+const SYNC_INTERVAL_MS = 5000; // how often to retry queued scans
 
 export function KioskScanner({ sections }: { sections: { id: string; name: string }[] }) {
   const [phase, setPhase] = useState<Phase>('setup');
@@ -18,12 +20,17 @@ export function KioskScanner({ sections }: { sections: { id: string; name: strin
   const [summary, setSummary] = useState<{ scanned_count: number; auto_absent_count: number } | null>(null);
   const [starting, setStarting] = useState(false);
   const [ending, setEnding] = useState(false);
+  const [scannedCount, setScannedCount] = useState(0);
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animationRef = useRef<number | null>(null);
   const lastScanRef = useRef<{ token: string; time: number } | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  const scannedRollsRef = useRef<Set<string>>(new Set()); // dedupe local scannedCount
 
   const stopCamera = useCallback(() => {
     if (animationRef.current) cancelAnimationFrame(animationRef.current);
@@ -32,6 +39,46 @@ export function KioskScanner({ sections }: { sections: { id: string; name: strin
   }, []);
 
   useEffect(() => stopCamera, [stopCamera]);
+
+  // ---- Background sync loop for offline-queued scans ----
+  useEffect(() => {
+    if (phase !== 'scanning') return;
+
+    async function trySync() {
+      const queued = await getQueuedScans();
+      setPendingSyncCount(queued.length);
+
+      for (const item of queued) {
+        try {
+          const res = await fetch('/api/kiosk/scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: item.session_id, qr_token: item.qr_token }),
+          });
+
+          // Whether it succeeded or the server gave a real rejection
+          // (not a network failure), it's resolved — remove from queue.
+          // A genuine network failure throws before we get here.
+          await res.json().catch(() => null);
+          await removeQueuedScan(item.id);
+        } catch {
+          // Still offline — leave it queued, try again next interval.
+          break;
+        }
+      }
+
+      setPendingSyncCount(await queuedScanCount());
+    }
+
+    trySync();
+    const interval = setInterval(trySync, SYNC_INTERVAL_MS);
+    window.addEventListener('online', trySync);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('online', trySync);
+    };
+  }, [phase]);
 
   async function startSession(e: React.FormEvent) {
     e.preventDefault();
@@ -49,6 +96,10 @@ export function KioskScanner({ sections }: { sections: { id: string; name: strin
       if (!res.ok) throw new Error(data.error ?? 'Could not start session.');
 
       setSessionId(data.session_id);
+      sessionIdRef.current = data.session_id;
+      setTotalStudents(data.total_active_students ?? 0);
+      setScannedCount(0);
+      scannedRollsRef.current = new Set();
       setPhase('scanning');
       await startCamera();
     } catch (err: any) {
@@ -104,12 +155,21 @@ export function KioskScanner({ sections }: { sections: { id: string; name: strin
     }
     lastScanRef.current = { token, time: now };
 
+    const currentSessionId = sessionIdRef.current;
+    if (!currentSessionId) return;
+
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6000);
+
       const res = await fetch('/api/kiosk/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId, qr_token: token }),
+        body: JSON.stringify({ session_id: currentSessionId, qr_token: token }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
+
       const data = await res.json();
 
       if (!res.ok) {
@@ -118,6 +178,10 @@ export function KioskScanner({ sections }: { sections: { id: string; name: strin
       }
 
       if (data.is_first_scan) {
+        if (!scannedRollsRef.current.has(data.roll_number)) {
+          scannedRollsRef.current.add(data.roll_number);
+          setScannedCount(scannedRollsRef.current.size);
+        }
         setFeedback({
           type: 'success',
           message: `✓ ${data.full_name} (Roll ${data.roll_number})`,
@@ -129,8 +193,39 @@ export function KioskScanner({ sections }: { sections: { id: string; name: strin
         });
       }
     } catch {
-      setFeedback({ type: 'error', message: 'Network error — check connection and retry.' });
+      // Network failure (offline, timeout, WiFi hiccup) — the scan
+      // itself is never lost, just queued for background sync.
+      await queueScan({
+        id: `${currentSessionId}-${token}-${now}`,
+        session_id: currentSessionId,
+        qr_token: token,
+        queued_at: new Date().toISOString(),
+      });
+      setPendingSyncCount(await queuedScanCount());
+      setFeedback({
+        type: 'queued',
+        message: 'No connection — scan saved, will sync automatically',
+      });
     }
+  }
+
+  async function confirmAndEndSession() {
+    const unscanned = totalStudents - scannedCount;
+    const proceed = window.confirm(
+      unscanned > 0
+        ? `${scannedCount} of ${totalStudents} students have scanned.\n\nEnding now will mark the remaining ${unscanned} absent. Continue?`
+        : `All ${totalStudents} students have scanned. End the session?`
+    );
+    if (!proceed) return;
+
+    if (pendingSyncCount > 0) {
+      const proceedAnyway = window.confirm(
+        `${pendingSyncCount} scan(s) haven't synced yet (offline). Ending now may mark those students absent instead. Wait for a connection, or continue anyway?`
+      );
+      if (!proceedAnyway) return;
+    }
+
+    await endSession();
   }
 
   async function endSession() {
@@ -181,6 +276,15 @@ export function KioskScanner({ sections }: { sections: { id: string; name: strin
         </div>
         <canvas ref={canvasRef} style={{ display: 'none' }} />
 
+        <div className={styles.statusBar}>
+          <span>
+            {scannedCount} / {totalStudents} scanned
+          </span>
+          {pendingSyncCount > 0 && (
+            <span className={styles.pendingBadge}>{pendingSyncCount} pending sync</span>
+          )}
+        </div>
+
         <div
           key={feedback.message}
           className={`${styles.feedback} ${
@@ -188,15 +292,17 @@ export function KioskScanner({ sections }: { sections: { id: string; name: strin
               ? styles.feedbackSuccess
               : feedback.type === 'repeat'
                 ? styles.feedbackRepeat
-                : feedback.type === 'error'
-                  ? styles.feedbackError
-                  : styles.feedbackIdle
+                : feedback.type === 'queued'
+                  ? styles.feedbackQueued
+                  : feedback.type === 'error'
+                    ? styles.feedbackError
+                    : styles.feedbackIdle
           }`}
         >
           {feedback.message}
         </div>
 
-        <button className={styles.endButton} onClick={endSession} disabled={ending}>
+        <button className={styles.endButton} onClick={confirmAndEndSession} disabled={ending}>
           {ending ? 'Ending session…' : 'End session'}
         </button>
       </div>

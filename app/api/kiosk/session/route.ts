@@ -33,7 +33,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Resume an existing session for this section+date if one exists
+  // Total active students in the section — used by the kiosk to show
+  // a meaningful "X of Y scanned" confirmation before closing.
+  const { count: totalActiveStudents } = await supabase
+    .from('students')
+    .select('*', { count: 'exact', head: true })
+    .eq('section_id', section_id)
+    .eq('active', true);
+
   const { data: existing } = await supabase
     .from('attendance_sessions')
     .select('id, status')
@@ -48,7 +55,11 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       );
     }
-    return NextResponse.json({ session_id: existing.id, status: existing.status });
+    return NextResponse.json({
+      session_id: existing.id,
+      status: existing.status,
+      total_active_students: totalActiveStudents ?? 0,
+    });
   }
 
   const { data: created, error } = await supabase
@@ -67,5 +78,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error?.message ?? 'Could not open session.' }, { status: 500 });
   }
 
-  return NextResponse.json({ session_id: created.id, status: created.status });
+  return NextResponse.json({
+    session_id: created.id,
+    status: created.status,
+    total_active_students: totalActiveStudents ?? 0,
+  });
 }

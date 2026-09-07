@@ -8,6 +8,7 @@ const LINKS = [
   { href: '/dashboard', label: 'Students' },
   { href: '/dashboard/id-cards', label: 'ID cards' },
   { href: '/dashboard/kiosk', label: 'Kiosk' },
+  { href: '/dashboard/health', label: 'Health' },
 ];
 
 export function DashboardNav() {
