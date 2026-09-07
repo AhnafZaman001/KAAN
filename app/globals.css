@@ -23,6 +23,8 @@
   --color-error-bg: #F7EBEC;
   --color-success: #2F5D45;
   --color-success-bg: #EBF2EE;
+  --color-medical: #8A6D1D;    /* muted amber-ink, for the 'M' status */
+  --color-medical-bg: #F6F0E0;
 
   /* ---- Type ---- */
   --font-body: 'IBM Plex Sans', system-ui, sans-serif;

@@ -45,17 +45,17 @@ export default function LoginPage() {
         <span className={styles.wordmark}>KAAN</span>
         <div>
           <div className={styles.markRow}>
-            <span className={styles.markPresent}>P</span>
-            <span className={styles.markName}>Ali Raza</span>
+            <span className={styles.markPresent}>✓</span>
+            <span className={styles.markName}>Ali Raza — Roll 101</span>
           </div>
           <div className={styles.markRow}>
-            <span className={styles.markAbsent}>A</span>
-            <span className={styles.markName}>Sara Khan</span>
+            <span className={styles.markPresent}>✓</span>
+            <span className={styles.markName}>Sara Khan — Roll 102</span>
           </div>
         </div>
         <p className={styles.showcaseFooter}>
-          Every paper register, read automatically and posted to one
-          record.
+          Every student scans in at the door — attendance recorded
+          instantly, no paperwork afterward.
         </p>
       </div>
 

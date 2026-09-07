@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getSections } from './get-sections';
 import { SectionPicker } from './section-picker';
 import { StudentsTable } from './students-table';
+import { StatCard } from './stat-card';
 import styles from './dashboard.module.css';
 
 export default async function DashboardPage({
@@ -42,18 +43,9 @@ export default async function DashboardPage({
       </div>
 
       <div className={styles.statsRow}>
-        <div className={styles.statCard}>
-          <div className={styles.statValue}>{totalStudents ?? 0}</div>
-          <div className={styles.statLabel}>students (school-wide)</div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={styles.statValue}>{sections.length}</div>
-          <div className={styles.statLabel}>sections</div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={styles.statValue}>{students?.length ?? 0}</div>
-          <div className={styles.statLabel}>in selected section</div>
-        </div>
+        <StatCard value={totalStudents ?? 0} label="students (school-wide)" />
+        <StatCard value={sections.length} label="sections" />
+        <StatCard value={students?.length ?? 0} label="in selected section" />
       </div>
 
       {sections.length === 0 ? (
